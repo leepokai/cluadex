@@ -309,6 +309,31 @@ function toolCode(name, args) {
   return `await (async () => { ${open} ${body} })();`;
 }
 
+// ---- diagnosis ----------------------------------------------------------------------------
+
+const NO_PID_SCRIPT = 'ObjC.import("AppKit"); JSON.stringify(ObjC.unwrap($.NSWorkspace.sharedWorkspace.runningApplications)' +
+  '.filter(app => app.processIdentifier === -1).map(app => ({ id: ObjC.unwrap(app.bundleIdentifier),' +
+  ' path: ObjC.unwrap(app.bundleURL.path), names: [ObjC.unwrap(app.localizedName)] })))';
+
+/** Apps macOS lists as running while giving no process id for them. */
+function appsWithoutPid() {
+  const out = spawnSync('/usr/bin/osascript', ['-l', 'JavaScript', '-e', NO_PID_SCRIPT], { encoding: 'utf8', timeout: 5000 });
+  try { return JSON.parse(out.stdout); } catch { return []; }
+}
+
+/**
+ * What to add to the runtime's bare `timeoutReached`. Seen on macOS 27: the runtime gives that
+ * answer after five seconds for exactly the apps AppKit lists without a process id, while the
+ * same windows read fine through the accessibility API when addressed by their real pid.
+ */
+function timeoutHint(app, apps = appsWithoutPid()) {
+  const keys = new Set(apps.flatMap(a => [a.id, a.path, basename(a.path ?? '', '.app'), ...a.names]).map(norm));
+  return isListed([app], keys)
+    ? 'macOS lists this app as running but gives no process id for it, so the runtime cannot attach to it. ' +
+      'Quitting the app and opening it again gives it a process id; ask the person before quitting their app.'
+    : '';
+}
+
 // ---- relay --------------------------------------------------------------------------------
 
 function filterTools(tools) {
@@ -330,7 +355,7 @@ function main() {
   let hosts;
   let prompts = Promise.resolve();
   const listIds = new Set();
-  const namedIds = new Set();
+  const namedIds = new Map(); // call id -> the app it was about
   const ownIds = new Set();
   const turnId = () => `${session}-turn-${turn}`;
 
@@ -386,8 +411,8 @@ function main() {
           toHost({ jsonrpc: '2.0', id: message.id, result: { isError: true, content: [{ type: 'text', text: `${name} needs ${missing.join(', ')}.` }] } });
           return;
         }
+        if (message.id !== undefined) namedIds.set(message.id, message.params.arguments?.app);
         message.params = { ...message.params, name: 'js', arguments: { code: toolCode(name, message.params.arguments), title: name } };
-        if (message.id !== undefined) namedIds.add(message.id);
       } else if (!PUBLIC_TOOLS.has(name)) {
         toHost({ jsonrpc: '2.0', id: message.id, result: { isError: true, content: [{ type: 'text', text: `${name} is not available.` }] } });
         return;
@@ -401,15 +426,24 @@ function main() {
   createInterface({ input: upstream.stdout }).on('line', line => {
     const message = parse(line);
     if (!message) return;
-    if (message.id !== undefined && ownIds.delete(message.id)) {
+    // The runtime numbers its own requests too; only an answer may be matched against the ids kept here.
+    const answer = message.id !== undefined && message.method === undefined;
+    if (answer && ownIds.delete(message.id)) {
       if (message.error || message.result?.isError) log(`turn cleanup failed: ${JSON.stringify(message.error ?? message.result).slice(0, 300)}`);
       return;
     }
-    if (message.id !== undefined && listIds.delete(message.id) && Array.isArray(message.result?.tools)) {
+    if (answer && listIds.delete(message.id) && Array.isArray(message.result?.tools)) {
       message.result.tools = [...toolDescriptors(), ...filterTools(message.result.tools)];
     }
-    if (message.id !== undefined && namedIds.delete(message.id) && PUBLIC_TOOLS.size === 0 && Array.isArray(message.result?.content)) {
-      for (const part of message.result.content) if (part.type === 'text') part.text = withoutApiManual(part.text);
+    if (answer && namedIds.has(message.id)) {
+      const app = namedIds.get(message.id);
+      namedIds.delete(message.id);
+      const parts = Array.isArray(message.result?.content) ? message.result.content : [];
+      if (PUBLIC_TOOLS.size === 0) for (const part of parts) if (part.type === 'text') part.text = withoutApiManual(part.text);
+      if (message.result?.isError && parts.some(part => part.text?.includes('timeoutReached'))) {
+        const hint = timeoutHint(app);
+        if (hint) parts.push({ type: 'text', text: hint });
+      }
     }
     if (message.method === 'elicitation/create' && isAppApproval(message.params)) {
       decide(message.params).then(result => toUpstream({ jsonrpc: '2.0', id: message.id, result }));
@@ -491,6 +525,10 @@ function selftest() {
   assert(toolCode('click', { app: 'Notes', element_index: 3 }).includes('await sky.click(a); nodeRepl.write((await sky.get_app_state({ app: a.app })).text);'));
   assert(!toolCode('list_apps', {}).includes('get_app_state'));
   assert.doesNotThrow(() => new Function(`return async () => { ${toolCode('get_app_state', { app: 'Notes', screenshot: true })} }`), 'generated code parses');
+  const noPid = [{ id: 'com.apple.dt.Devices', path: '/Applications/Xcode.app/Contents/Applications/DeviceHub.app', names: ['Device Hub'] }];
+  for (const asked of ['com.apple.dt.Devices', 'Device Hub', 'devicehub', noPid[0].path]) assert(timeoutHint(asked, noPid).includes('process id'), asked);
+  for (const asked of ['Calculator', 'com.apple.calculator', undefined]) assert.equal(timeoutHint(asked, noPid), '');
+  assert.equal(timeoutHint('Device Hub', []), '');
   assert.equal(appPaths({}, '/X/ChatGPT.app/Contents/Resources/cua_node/bin/node').app, '/X/ChatGPT.app');
   assert.equal(appPaths({}, '/usr/local/bin/node').app, '/Applications/ChatGPT.app');
   assert.equal(appPaths({ CLUADEX_APP: '/Y/ChatGPT.app' }, '/usr/local/bin/node').app, '/Y/ChatGPT.app');

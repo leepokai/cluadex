@@ -188,6 +188,7 @@ Claude Code ── MCP ── relay.mjs ── MCP ── cua-repl (OpenAI) ─�
 - Subagent calls share the parent turn.
 - The host guard matches bundle ids, names and paths by spelling.
 - Clicking or dragging by x and y needs the window on stage. With Stage Manager on, a parked window is only a thumbnail and the runtime answers `windowNotFoundAtPosition`; acting by element index works either way. Because of that, point clicks and drags are untested here.
+- An app that macOS lists as running without a process id cannot be read: the runtime answers `timeoutReached` after five seconds. Seen on macOS 27 with Device Hub and Preview after days of uptime. The relay adds the reason to that error. Quitting and reopening the app gives it a process id again (checked with QuickTime Player); reading an app after that is untested.
 - The runtime waited 45 seconds for an approval answer in testing; the full 120 seconds is untested.
 - The plain list dialog has been shown and timed out in testing, but never answered. Esc-to-deny on the panel is written but untested.
 
