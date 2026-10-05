@@ -126,6 +126,38 @@ The panel does not take the keyboard, so nothing you are typing can answer it. O
 ./build.sh
 ```
 
+## Run from a clone
+
+To change the code and have it take effect straight away, skip the plugin and register a clone as a user MCP server:
+
+```sh
+git clone https://github.com/leepokai/cluadex ~/cluadex
+claude mcp add --scope user cluadex -- /Applications/ChatGPT.app/Contents/Resources/cua_node/bin/node ~/cluadex/relay.mjs
+```
+
+Turn cleanup comes from two hooks, which the plugin would otherwise bring. Add them to `~/.claude/settings.json`:
+
+```json
+{
+  "hooks": {
+    "Stop": [
+      { "hooks": [{ "type": "command", "command": "sh \"$HOME/cluadex/hooks/turn-end.sh\" Stop 2>/dev/null || true", "timeout": 5 }] }
+    ],
+    "UserPromptSubmit": [
+      { "hooks": [{ "type": "command", "command": "sh \"$HOME/cluadex/hooks/turn-end.sh\" Interrupt 2>/dev/null || true", "timeout": 5 }] }
+    ]
+  }
+}
+```
+
+The tools are then named `mcp__cluadex__click` and so on, and the server is listed under your user MCP servers.
+
+- A change to `relay.mjs` applies the next time the server starts: reconnect it from `/mcp`, or open a new session.
+- A change to `hooks/turn-end.sh` applies at once.
+- After changing `ui/ApprovalPanel.swift`, run `./build.sh`.
+
+Do not install the plugin as well. Two copies in one session would compete for the same socket.
+
 ## Checks
 
 ```sh
