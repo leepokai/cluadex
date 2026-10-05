@@ -497,13 +497,18 @@ function selftest() {
   console.log('selftest ok');
 }
 
-/** `--check`: start the real relay and ask the runtime to list apps. Run it after a ChatGPT app update. */
+/**
+ * `--check`: start the real relay, list apps through it, and compare the runtime's own list of
+ * computer-use functions with the tools offered here. Run it after a ChatGPT app update.
+ */
 function check() {
   const relay = spawn(process.execPath, [fileURLToPath(import.meta.url)], {
-    env: { ...process.env, CLUADEX_APPROVAL: 'deny' }, stdio: ['pipe', 'pipe', 'inherit'] });
+    env: { ...process.env, CLUADEX_APPROVAL: 'deny', CLUADEX_JS: '1' }, stdio: ['pipe', 'pipe', 'inherit'] });
   const send = message => relay.stdin.write(`${JSON.stringify(message)}\n`);
   const finish = (ok, text) => { console.log(`${ok ? 'ok' : 'FAILED'}: ${text}`); relay.kill(); process.exit(ok ? 0 : 1); };
+  const textOf = message => (message.result?.content ?? []).map(part => part.text ?? '').join('\n');
   const timer = setTimeout(() => finish(false, 'no answer from the runtime within 60 s'), 60_000);
+  let apps = 0;
   relay.on('exit', code => { clearTimeout(timer); finish(false, `relay exited with status ${code}`); });
   createInterface({ input: relay.stdout }).on('line', line => {
     const message = JSON.parse(line);
@@ -512,13 +517,21 @@ function check() {
       send({ jsonrpc: '2.0', id: 2, method: 'tools/list' });
     } else if (message.id === 2) {
       const names = message.result.tools.map(tool => tool.name);
-      const expected = [...Object.keys(TOOLS), ...PUBLIC_TOOLS];
+      const expected = [...Object.keys(TOOLS), 'js', 'js_reset'];
       if (names.join() !== expected.join()) finish(false, `unexpected tools: ${names.join(', ')}`);
       send({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'list_apps', arguments: {} } });
     } else if (message.id === 3) {
-      const text = (message.result?.content ?? []).map(part => part.text ?? '').join('\n');
-      const apps = (text.match(/"id":/g) ?? []).length;
-      finish(apps > 0 && !message.result.isError, apps > 0 ? `runtime answered, ${Object.keys(TOOLS).length + PUBLIC_TOOLS.size} tools, ${apps} apps listed` : text.slice(0, 300));
+      apps = (textOf(message).match(/"id":/g) ?? []).length;
+      if (apps === 0 || message.result.isError) finish(false, textOf(message).slice(0, 300));
+      send({ jsonrpc: '2.0', id: 4, method: 'tools/call', params: { name: 'js', arguments: { code:
+        'const { sky } = await import("@oai/sky"); nodeRepl.write("functions=" + Object.keys(sky).filter(key => typeof sky[key] === "function").sort().join(","));' } } });
+    } else if (message.id === 4) {
+      const found = /functions=([\w,]*)/.exec(textOf(message))?.[1].split(',').filter(Boolean) ?? [];
+      const gone = Object.keys(TOOLS).filter(name => !found.includes(name));
+      const added = found.filter(name => !Object.hasOwn(TOOLS, name));
+      if (found.length === 0 || gone.length) finish(false, `the runtime no longer has: ${gone.join(', ') || 'any function this check could read'}`);
+      finish(true, `runtime answered, ${apps} apps listed, all ${Object.keys(TOOLS).length} tools match the runtime` +
+        (added.length ? `; the runtime also has ${added.join(', ')}, which this plugin does not offer yet` : ''));
     }
   });
   send({ jsonrpc: '2.0', id: 1, method: 'initialize',

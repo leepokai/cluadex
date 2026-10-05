@@ -131,10 +131,12 @@ The panel does not take the keyboard, so nothing you are typing can answer it. O
 ```sh
 NODE=/Applications/ChatGPT.app/Contents/Resources/cua_node/bin/node
 $NODE relay.mjs --selftest   # approval and guard logic, no desktop needed
-$NODE relay.mjs --check      # starts the real runtime and lists apps
+$NODE relay.mjs --check      # starts the real runtime, lists apps, compares its functions with the tools
 ```
 
-Run `--check` after the ChatGPT app updates. This plugin depends on the app's internal layout, which OpenAI can change in any release.
+Run `--check` after the ChatGPT app updates. This plugin depends on the app's internal layout, which OpenAI can change in any release. The check also reads the runtime's own list of computer-use functions: it fails if one of the tools has lost its function, and says so if the runtime has gained one the plugin does not offer.
+
+On macOS the runtime has exactly the eleven functions listed above. Its documentation also describes window listing, app launching and scrolling by pixels, which the macOS runtime does not provide, and a browser tab API, which needs the Chrome surface this plugin leaves off.
 
 ## How it works
 
