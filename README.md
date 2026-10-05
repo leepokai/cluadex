@@ -17,7 +17,7 @@ Codex computer use as a plugin. Two commands to install, about 800 lines, nothin
 ![macOS](https://img.shields.io/badge/macOS-26+-black?logo=apple)
 ![Apple Silicon](https://img.shields.io/badge/Apple_Silicon-arm64-black?logo=apple)
 ![Relay](https://img.shields.io/badge/relay-Node.js-5FA04E?logo=nodedotjs&logoColor=white)
-![Panel](https://img.shields.io/badge/panel-SwiftUI-F05138?logo=swift&logoColor=white)
+![Approvals](https://img.shields.io/badge/approvals-in_Claude_Code-D97757?logo=claude&logoColor=white)
 
 </div>
 
@@ -91,7 +91,7 @@ The runtime's JavaScript tools (`js`, `js_reset`) are not offered by default: th
 
 - Apple Silicon Mac with the [ChatGPT desktop app](https://chatgpt.com/download/) at `/Applications/ChatGPT.app`, with Computer Use already working in Codex (Accessibility and Screen Recording granted).
 - Claude Code.
-- macOS 26 or newer for the Liquid Glass panel. Older systems get a plain list dialog instead.
+- macOS 26 or newer for the optional Liquid Glass panel (`CLUADEX_APPROVAL=panel`). Older systems get a plain list dialog instead.
 
 There is nothing else to install. The relay runs on the Node bundled inside the ChatGPT app.
 
@@ -121,9 +121,9 @@ The panel (`CLUADEX_APPROVAL=panel`) does not take the keyboard, so nothing you 
 | `CLUADEX_JS=1` | Also offer the runtime's `js` and `js_reset` tools. |
 | `CLUADEX_APP=/path/to/ChatGPT.app` | Use an app outside `/Applications` (also change the Node path in `.mcp.json`). |
 
-## The approval panel binary
+## The fallback panel binary
 
-`bin/approve-ui` is built from `ui/ApprovalPanel.swift` and committed so the plugin works without Xcode. It only draws the panel and prints the choice; `relay.mjs` decides what that means. To build it yourself:
+Approvals are asked in Claude Code by default. The panel is used only with `CLUADEX_APPROVAL=panel` or a host without MCP elicitation. `bin/approve-ui` is built from `ui/ApprovalPanel.swift` and committed so the plugin works without Xcode. It only draws the panel and prints the choice; `relay.mjs` decides what that means. To build it yourself:
 
 ```sh
 ./build.sh

@@ -1,7 +1,7 @@
 {
   "name": "cluadex",
   "version": "0.3.2",
-  "description": "A lightweight LCU for Claude Code only: Codex computer use as a plugin, on macOS. Reuses the installed ChatGPT app's own computer-use runtime and adds a Liquid Glass approval panel, turn cleanup and a host-app guard.",
+  "description": "A lightweight LCU for Claude Code only: Codex computer use as a plugin, on macOS. Reuses the installed ChatGPT app's own computer-use runtime and asks for each app's approval inside Claude Code, with turn cleanup and a host-app guard.",
   "author": {
     "name": "leepokai",
     "url": "https://github.com/leepokai"
