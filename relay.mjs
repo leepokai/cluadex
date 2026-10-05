@@ -204,6 +204,96 @@ function askPerson({ app, shown, risk, options }) {
   });
 }
 
+// ---- enumerated tools ---------------------------------------------------------------------
+
+// The runtime's own surface is one tool that runs JavaScript. These wrap its computer-use
+// functions as ordinary tools, so a host can list them, check their arguments and set
+// permissions per action. Each call becomes one `js` call upstream; nothing is reimplemented.
+const APP = { type: 'string', description: 'App name, bundle identifier, or path to the .app.' };
+const INDEX = { type: 'integer', description: 'Element index from the most recent get_app_state text for this app.' };
+const X = { type: 'number', description: 'Horizontal pixel position in the app screenshot.' };
+const Y = { type: 'number', description: 'Vertical pixel position in the app screenshot.' };
+const AFTER = ' Returns the app state after the action.';
+
+const TOOLS = {
+  list_apps: { readOnly: true, required: [], properties: {},
+    description: 'List the apps on this Mac that computer use can work with, running or not.' },
+  get_app_state: { readOnly: true, required: ['app'],
+    properties: { app: APP,
+      full: { type: 'boolean', description: 'Return the whole accessibility tree instead of the changes since the last call.' },
+      screenshot: { type: 'boolean', description: 'Also return a screenshot of the window. Use when the text is not enough.' } },
+    description: 'Read an app\'s key window as accessibility text with numbered elements, starting the app if needed. Call it before acting on an app and whenever the UI may have changed.' },
+  click: { required: ['app'],
+    properties: { app: APP, element_index: INDEX, x: X, y: Y,
+      mouse_button: { type: 'string', enum: ['left', 'right', 'middle'], description: 'Defaults to left.' },
+      click_count: { type: 'integer', minimum: 1, maximum: 3, description: 'Defaults to 1; 2 is a double click.' } },
+    description: 'Click an element by index, or a point by x and y. Prefer the index.' + AFTER },
+  type_text: { required: ['app', 'text'],
+    properties: { app: APP, text: { type: 'string', description: 'Text to type. A newline presses Return, which may submit a form.' } },
+    description: 'Type literal text into the focused field of an app.' + AFTER },
+  press_key: { required: ['app', 'key'],
+    properties: { app: APP, key: { type: 'string', description: 'xdotool-style key or combination, such as "Return", "Tab", "Up", "super+c".' } },
+    description: 'Press a key or key combination in an app. It cannot trigger global shortcuts.' + AFTER },
+  set_value: { required: ['app', 'element_index', 'value'],
+    properties: { app: APP, element_index: INDEX, value: { type: 'string', description: 'The new value.' } },
+    description: 'Set the value of a settable element, such as a text field or slider.' + AFTER },
+  select_text: { required: ['app', 'element_index', 'text'],
+    properties: { app: APP, element_index: INDEX,
+      text: { type: 'string', description: 'The text to select, or to place the cursor next to.' },
+      prefix: { type: 'string', description: 'Text right before it, to pick one of several matches.' },
+      suffix: { type: 'string', description: 'Text right after it, to pick one of several matches.' },
+      selection_type: { type: 'string', enum: ['text', 'cursor_before', 'cursor_after'], description: 'Defaults to text.' } },
+    description: 'Select text inside a text element, or place the cursor before or after it.' + AFTER },
+  paste: { required: ['app', 'text', 'format'],
+    properties: { app: APP, text: { type: 'string', description: 'What to paste.' },
+      format: { type: 'string', enum: ['text', 'md', 'html'], description: 'How the text is interpreted.' } },
+    description: 'Paste text into an app, keeping the clipboard as it was. Good for formatted or multi-line text.' + AFTER },
+  scroll: { required: ['app', 'direction'],
+    properties: { app: APP, element_index: INDEX, x: X, y: Y,
+      direction: { type: 'string', enum: ['up', 'down', 'left', 'right'] },
+      pages: { type: 'number', description: 'How far, in pages. Defaults to 1.' } },
+    description: 'Scroll an element, or the view at a point, by pages.' + AFTER },
+  drag: { required: ['app', 'from_x', 'from_y', 'to_x', 'to_y'],
+    properties: { app: APP, from_x: X, from_y: Y, to_x: X, to_y: Y },
+    description: 'Press at one point of the app screenshot, move to another and release.' + AFTER },
+  perform_secondary_action: { required: ['app', 'element_index', 'action'],
+    properties: { app: APP, element_index: INDEX,
+      action: { type: 'string', description: 'An action the element lists under Secondary Actions, spelled exactly as shown.' } },
+    description: 'Run one of an element\'s secondary accessibility actions, such as Raise, Show Menu or Increment.' + AFTER },
+};
+
+function toolDescriptors() {
+  return Object.entries(TOOLS).map(([name, spec]) => ({
+    name,
+    description: spec.description,
+    inputSchema: { type: 'object', properties: spec.properties, required: spec.required, additionalProperties: false },
+    annotations: { readOnlyHint: Boolean(spec.readOnly) },
+  }));
+}
+
+/** The names of required arguments that are absent, so a bad call fails here with a clear message. */
+function missingArguments(name, args) {
+  return TOOLS[name].required.filter(key => args?.[key] === undefined || args[key] === null);
+}
+
+/** The JavaScript one tool call becomes. Arguments travel as a JSON literal, never as code. */
+function toolCode(name, args) {
+  const known = Object.fromEntries(Object.entries(args ?? {}).filter(([key]) => key in TOOLS[name].properties));
+  const open = `const sky = globalThis.__cluadexSky ??= (await import("@oai/sky")).sky; const a = ${JSON.stringify(known)};`;
+  let body;
+  if (name === 'list_apps') {
+    body = 'nodeRepl.write(JSON.stringify(await sky.list_apps(), null, 1));';
+  } else if (name === 'get_app_state') {
+    body = 'const s = await sky.get_app_state({ app: a.app, disableDiff: a.full === true }); nodeRepl.write(s.text);' +
+      ' if (a.screenshot === true && s.screenshot) { const fs = await import("node:fs/promises"); const { fileURLToPath } = await import("node:url");' +
+      ' const bytes = await fs.readFile(fileURLToPath(s.screenshot.url));' +
+      ' await nodeRepl.emitImage({ bytes, mimeType: bytes[0] === 0x89 ? "image/png" : "image/jpeg" }); }';
+  } else {
+    body = `await sky.${name}(a); nodeRepl.write((await sky.get_app_state({ app: a.app })).text);`;
+  }
+  return `await (async () => { ${open} ${body} })();`;
+}
+
 // ---- relay --------------------------------------------------------------------------------
 
 function filterTools(tools) {
@@ -274,7 +364,14 @@ function main() {
     if (message.method === 'tools/list' && message.id !== undefined) listIds.add(message.id);
     if (message.method === 'tools/call') {
       const name = message.params?.name;
-      if (!PUBLIC_TOOLS.has(name)) {
+      if (Object.hasOwn(TOOLS, name)) {
+        const missing = missingArguments(name, message.params.arguments);
+        if (missing.length) {
+          toHost({ jsonrpc: '2.0', id: message.id, result: { isError: true, content: [{ type: 'text', text: `${name} needs ${missing.join(', ')}.` }] } });
+          return;
+        }
+        message.params = { ...message.params, name: 'js', arguments: { code: toolCode(name, message.params.arguments), title: name } };
+      } else if (!PUBLIC_TOOLS.has(name)) {
         toHost({ jsonrpc: '2.0', id: message.id, result: { isError: true, content: [{ type: 'text', text: `${name} is not available.` }] } });
         return;
       }
@@ -292,7 +389,7 @@ function main() {
       return;
     }
     if (message.id !== undefined && listIds.delete(message.id) && Array.isArray(message.result?.tools)) {
-      message.result.tools = filterTools(message.result.tools);
+      message.result.tools = [...toolDescriptors(), ...filterTools(message.result.tools)];
     }
     if (message.method === 'elicitation/create' && isAppApproval(message.params)) {
       decide(message.params).then(result => toUpstream({ jsonrpc: '2.0', id: message.id, result }));
@@ -355,6 +452,22 @@ function selftest() {
   assert(isAppApproval({ _meta: { connector_id: 'computer-use', codex_approval_kind: 'mcp_tool_call' } }));
   assert(!isAppApproval({ _meta: { connector_id: 'chrome' } }));
   assert.equal(riskText({ warningSubtitle: 'Sees passwords.' }), 'Sees passwords.');
+  assert.deepEqual(toolDescriptors().map(tool => tool.name), ['list_apps', 'get_app_state', 'click', 'type_text', 'press_key',
+    'set_value', 'select_text', 'paste', 'scroll', 'drag', 'perform_secondary_action']);
+  for (const tool of toolDescriptors()) {
+    assert(tool.inputSchema.required.every(key => key in tool.inputSchema.properties), `${tool.name}: required names a property`);
+    assert.equal(tool.inputSchema.additionalProperties, false);
+  }
+  assert.deepEqual(toolDescriptors().filter(tool => tool.annotations.readOnlyHint).map(tool => tool.name), ['list_apps', 'get_app_state']);
+  assert.deepEqual(missingArguments('click', {}), ['app']);
+  assert.deepEqual(missingArguments('drag', { app: 'Notes', from_x: 1, from_y: 2 }), ['to_x', 'to_y']);
+  assert.deepEqual(missingArguments('list_apps', undefined), []);
+  const hostile = toolCode('type_text', { app: 'Notes', text: '"); process.exit(); ("', sneaky: 'await evil()' });
+  assert(hostile.includes(JSON.stringify({ app: 'Notes', text: '"); process.exit(); ("' })), 'arguments are embedded as one JSON literal');
+  assert(!hostile.includes('sneaky') && !hostile.includes('evil'), 'unknown arguments are dropped');
+  assert(toolCode('click', { app: 'Notes', element_index: 3 }).includes('await sky.click(a); nodeRepl.write((await sky.get_app_state({ app: a.app })).text);'));
+  assert(!toolCode('list_apps', {}).includes('get_app_state'));
+  assert.doesNotThrow(() => new Function(`return async () => { ${toolCode('get_app_state', { app: 'Notes', screenshot: true })} }`), 'generated code parses');
   assert.equal(appPaths({}, '/X/ChatGPT.app/Contents/Resources/cua_node/bin/node').app, '/X/ChatGPT.app');
   assert.equal(appPaths({}, '/usr/local/bin/node').app, '/Applications/ChatGPT.app');
   assert.equal(appPaths({ CLUADEX_APP: '/Y/ChatGPT.app' }, '/usr/local/bin/node').app, '/Y/ChatGPT.app');
@@ -375,14 +488,14 @@ function check() {
       send({ jsonrpc: '2.0', method: 'notifications/initialized' });
       send({ jsonrpc: '2.0', id: 2, method: 'tools/list' });
     } else if (message.id === 2) {
-      const names = message.result.tools.map(tool => tool.name).join(', ');
-      if (names !== 'js, js_reset') finish(false, `unexpected tools: ${names}`);
-      send({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'js', arguments: {
-        code: 'var sky = (await import("@oai/sky")).sky; nodeRepl.write("apps=" + (await sky.list_apps()).length)' } } });
+      const names = message.result.tools.map(tool => tool.name);
+      const expected = [...Object.keys(TOOLS), 'js', 'js_reset'];
+      if (names.join() !== expected.join()) finish(false, `unexpected tools: ${names.join(', ')}`);
+      send({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'list_apps', arguments: {} } });
     } else if (message.id === 3) {
       const text = (message.result?.content ?? []).map(part => part.text ?? '').join('\n');
-      const apps = /apps=(\d+)/.exec(text);
-      finish(Boolean(apps) && !message.result.isError, apps ? `runtime answered, ${apps[1]} apps listed` : text.slice(0, 300));
+      const apps = (text.match(/"id":/g) ?? []).length;
+      finish(apps > 0 && !message.result.isError, apps > 0 ? `runtime answered, ${Object.keys(TOOLS).length + PUBLIC_TOOLS.size} tools, ${apps} apps listed` : text.slice(0, 300));
     }
   });
   send({ jsonrpc: '2.0', id: 1, method: 'initialize',

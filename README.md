@@ -5,14 +5,14 @@
 # Cluadex
 
 **A lightweight LCU, for Claude Code only.**<br>
-Codex computer use as a plugin. Two commands to install, about 700 lines, nothing else to set up.
+Codex computer use as a plugin. Two commands to install, about 800 lines, nothing else to set up.
 
 [![Claude Code plugin](https://img.shields.io/badge/Claude_Code-plugin-D97757?logo=claude&logoColor=white)](#install)
 [![Version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fleepokai%2Fcluadex%2Fmain%2F.claude-plugin%2Fplugin.json&query=%24.version&prefix=v&label=version&color=black)](https://github.com/leepokai/cluadex/commits/main)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Idea from LCU](https://img.shields.io/badge/idea_from-LCU-555)](https://github.com/amontlabs/lcu)
 <br>
-![Size](https://img.shields.io/badge/size-~700_lines-black)
+![Size](https://img.shields.io/badge/size-~800_lines-black)
 ![Dependencies](https://img.shields.io/badge/dependencies-none-black)
 ![macOS](https://img.shields.io/badge/macOS-26+-black?logo=apple)
 ![Apple Silicon](https://img.shields.io/badge/Apple_Silicon-arm64-black?logo=apple)
@@ -49,7 +49,7 @@ claude --plugin-dir ./cluadex
 | Platforms | macOS and Linux, Windows as a candidate | macOS on Apple Silicon |
 | Install | Release archive and installer, needs Python 3.12+ | Two `claude plugin` commands |
 | Update and removal | `lcu update`, manual removal steps | Claude Code's plugin manager |
-| Code, without tests | about 11,400 lines | about 700 lines |
+| Code, without tests | about 11,400 lines | about 800 lines |
 | Chrome control, audio recording | Opt-in | Not included |
 | Managing the always-allowed list | `lcu apps`, behind Touch ID | Edit one file |
 
@@ -57,13 +57,34 @@ If you need Linux, another harness or Chrome, use LCU. Line counts were taken on
 
 ## What it does
 
-The ChatGPT desktop app ships a computer-use MCP server. This plugin starts that server, unchanged, and gives Claude Code its two tools (`js`, `js_reset`). It adds only what a host other than Codex lacks:
+The ChatGPT desktop app ships a computer-use MCP server. This plugin starts that server, unchanged, and offers its computer-use functions to Claude Code as ordinary tools. It adds only what a host other than Codex lacks:
 
 - **Approval panel.** The first time the agent touches an app, a Liquid Glass panel asks "Allow computer use to control …?". Only the person at the Mac can answer; the model cannot see or press it.
 - **Turn cleanup.** Hooks tell the runtime when a turn ends.
 - **Host guard.** The app hosting the agent (Claude, your terminal) is never approved, so the agent cannot click its own permission prompts.
 
 It contains no computer-use logic and no OpenAI files. This is an unofficial project, not affiliated with OpenAI or Anthropic.
+
+## Tools
+
+| Tool | What it does |
+| --- | --- |
+| `list_apps` | Lists the apps computer use can work with. |
+| `get_app_state` | Reads an app's key window as numbered accessibility text, with an optional screenshot. |
+| `click` | Clicks an element by index, or a point. |
+| `type_text` | Types text into the focused field. |
+| `press_key` | Presses a key or combination. |
+| `set_value` | Sets a text field, slider or other settable element. |
+| `select_text` | Selects text, or places the cursor next to it. |
+| `paste` | Pastes plain, Markdown or HTML text and restores the clipboard. |
+| `scroll` | Scrolls an element or the view at a point. |
+| `drag` | Drags from one point to another. |
+| `perform_secondary_action` | Runs an element's secondary accessibility action. |
+| `js`, `js_reset` | The runtime's own tools: run JavaScript against the same functions, to chain several actions in one call. |
+
+The first two only read. Every other named tool returns the app's state after it acts, so there is no need to read again before the next step. Because each action is its own tool, Claude Code's permission rules can allow reading while still asking before clicks.
+
+Each named tool is turned into one `js` call for the runtime. Nothing about computer use is reimplemented here.
 
 ## Requirements
 
@@ -130,6 +151,7 @@ Claude Code ── MCP ── relay.mjs ── MCP ── cua-repl (OpenAI) ─�
 - A turn interrupted with Esc is cleaned up at the next prompt, not at once.
 - Subagent calls share the parent turn.
 - The host guard matches bundle ids, names and paths by spelling.
+- Clicking or dragging by x and y needs the window on stage. With Stage Manager on, a parked window is only a thumbnail and the runtime answers `windowNotFoundAtPosition`; acting by element index works either way. Because of that, point clicks and drags are untested here.
 - The runtime waited 45 seconds for an approval answer in testing; the full 120 seconds is untested.
 - The plain list dialog has been shown and timed out in testing, but never answered. Esc-to-deny on the panel is written but untested.
 
