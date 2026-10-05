@@ -1,0 +1,20 @@
+{
+  "name": "skyhook",
+  "version": "0.1.0",
+  "description": "Codex computer use in Claude Code, on macOS. Starts the installed ChatGPT app's own computer-use MCP server and adds a Liquid Glass approval panel, turn cleanup and a host-app guard.",
+  "author": {
+    "name": "leepokai",
+    "url": "https://github.com/leepokai"
+  },
+  "homepage": "https://github.com/leepokai/claude-plugin-skyhook",
+  "repository": "https://github.com/leepokai/claude-plugin-skyhook",
+  "license": "MIT",
+  "keywords": [
+    "claude-plugin",
+    "computer-use",
+    "codex",
+    "macos",
+    "mcp",
+    "liquid-glass"
+  ]
+}
