@@ -3,42 +3,7 @@
   <g id="icon">
     <rect id="tile" width="512" height="512" rx="115" fill="#000"/>
     <rect id="edge" x="2" y="2" width="508" height="508" rx="113" fill="none" stroke="#fff" stroke-opacity="0.14" stroke-width="4"/>
-    <path id="ripple-1" d="M212.4 274.8 A64 64 0 1 1 319.9 231.3" fill="none" stroke="#fff" stroke-width="27" stroke-linecap="round"/>
-    <g id="ripple-2" fill="#fff">
-      <circle cx="182.3" cy="307.0" r="11"/>
-      <circle cx="159.0" cy="275.5" r="11"/>
-      <circle cx="148.4" cy="237.8" r="11"/>
-      <circle cx="152.0" cy="198.7" r="11"/>
-      <circle cx="169.3" cy="163.6" r="11"/>
-      <circle cx="198.0" cy="136.9" r="11"/>
-      <circle cx="234.4" cy="122.2" r="11"/>
-      <circle cx="273.6" cy="121.4" r="11"/>
-      <circle cx="310.4" cy="134.7" r="11"/>
-      <circle cx="340.1" cy="160.3" r="11"/>
-      <circle cx="358.8" cy="194.8" r="11"/>
-      <circle cx="363.9" cy="233.7" r="11"/>
-    </g>
-    <g id="ripple-3" fill="#fff">
-      <circle cx="152.3" cy="339.2" r="8.5"/>
-      <circle cx="130.3" cy="313.5" r="8.5"/>
-      <circle cx="114.5" cy="283.6" r="8.5"/>
-      <circle cx="105.7" cy="250.9" r="8.5"/>
-      <circle cx="104.4" cy="217.1" r="8.5"/>
-      <circle cx="110.6" cy="183.8" r="8.5"/>
-      <circle cx="123.9" cy="152.8" r="8.5"/>
-      <circle cx="143.8" cy="125.4" r="8.5"/>
-      <circle cx="169.3" cy="103.2" r="8.5"/>
-      <circle cx="199.1" cy="87.1" r="8.5"/>
-      <circle cx="231.6" cy="78.0" r="8.5"/>
-      <circle cx="265.4" cy="76.3" r="8.5"/>
-      <circle cx="298.7" cy="82.1" r="8.5"/>
-      <circle cx="329.9" cy="95.2" r="8.5"/>
-      <circle cx="357.5" cy="114.8" r="8.5"/>
-      <circle cx="380.0" cy="140.1" r="8.5"/>
-      <circle cx="396.4" cy="169.7" r="8.5"/>
-      <circle cx="405.8" cy="202.2" r="8.5"/>
-      <circle cx="407.8" cy="236.0" r="8.5"/>
-    </g>
-    <polygon id="cursor" points="265.0,237.0 265.0,405.0 304.0,369.0 331.0,432.0 355.0,421.5 328.0,360.0 382.0,360.0" fill="#fff" stroke="#fff" stroke-width="6" stroke-linejoin="round"/>
+    <path id="ripple-1" d="M172.6 255.8 A90 90 0 1 1 323.9 194.7" fill="none" stroke="#fff" stroke-width="34" stroke-linecap="round"/>
+    <polygon id="cursor" points="244.8,200.8 244.8,402.4 291.6,359.2 324.0,434.8 352.8,422.2 320.4,348.4 385.2,348.4" fill="#fff" stroke="#fff" stroke-width="7.2" stroke-linejoin="round"/>
   </g>
 </svg>
