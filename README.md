@@ -1,6 +1,21 @@
+<div align="center">
+
 # Cluadex
 
-Codex's CUA runtime, for Claude. A Claude Code plugin for macOS.
+**Codex's CUA runtime, for Claude.**<br>
+A Claude Code plugin for macOS.
+
+[![Claude Code plugin](https://img.shields.io/badge/Claude_Code-plugin-D97757?logo=claude&logoColor=white)](https://github.com/leepokai/cluadex#install)
+[![Version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fleepokai%2Fcluadex%2Fmain%2F.claude-plugin%2Fplugin.json&query=%24.version&prefix=v&label=version&color=black)](https://github.com/leepokai/cluadex/commits/main)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+<br>
+![macOS](https://img.shields.io/badge/macOS-26+-black?logo=apple)
+![Apple Silicon](https://img.shields.io/badge/Apple_Silicon-arm64-black?logo=apple)
+![Relay](https://img.shields.io/badge/relay-Node.js-5FA04E?logo=nodedotjs&logoColor=white)
+![Panel](https://img.shields.io/badge/panel-SwiftUI-F05138?logo=swift&logoColor=white)
+![Protocol](https://img.shields.io/badge/protocol-MCP-black)
+
+</div>
 
 The name is Claude + CUA + Codex: Claude using Codex's computer-use agent (CUA) runtime.
 
