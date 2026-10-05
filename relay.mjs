@@ -206,6 +206,22 @@ function askPerson({ app, shown, risk, options }) {
   });
 }
 
+/**
+ * The form Claude Code shows for an app approval: one required choice, so the dialog's own
+ * Decline (or Esc) is the denial. The relay, not the host, turns the choice into the runtime's answer.
+ */
+function hostElicitation({ name, risk, options }) {
+  return {
+    message: `Allow computer use to control ${name}?${risk ? `\n\nHigh risk: ${risk}` : ''}\n\nDecline to deny.`,
+    requestedSchema: { type: 'object', required: ['choice'], properties: {
+      choice: { type: 'string', title: 'Allow', enum: options, enumNames: options.map(key => LABELS[key]), default: options[0] } } },
+  };
+}
+
+/** The host's answer as a choice. Anything but an accepted, offered choice is a denial. */
+const hostChoice = (result, options) =>
+  result?.action === 'accept' && options.includes(result.content?.choice) ? result.content.choice : 'deny';
+
 // ---- enumerated tools ---------------------------------------------------------------------
 
 // The runtime's own surface is one tool that runs JavaScript. These wrap its computer-use
@@ -357,6 +373,7 @@ function main() {
   const listIds = new Set();
   const namedIds = new Map(); // call id -> the app it was about
   const ownIds = new Set();
+  const hostAsks = new Map(); // our elicitation id -> resolve
   const turnId = () => `${session}-turn-${turn}`;
 
   const upstream = spawn(p.node, [p.launcher], { env: upstreamEnv(p, session), stdio: ['pipe', 'pipe', 'inherit'] });
@@ -389,15 +406,37 @@ function main() {
     }
     if (process.env.CLUADEX_APPROVAL === 'deny') return { action: 'decline' }; // unattended runs; there is no allow override
     const offer = approvalOptions(meta);
-    const choice = await (prompts = prompts.then(() => askPerson({
-      app, shown, risk: offer.highRisk ? riskText(meta) : '', options: offer.options })));
+    const ask = { app, shown, risk: offer.highRisk ? riskText(meta) : '', options: offer.options };
+    // Default: ask in Claude Code itself. The answer comes back over the host's own MCP pipe, which the
+    // model cannot write to; the host app is never approvable, so the agent cannot click it either.
+    const inHost = hostElicits && process.env.CLUADEX_APPROVAL !== 'panel';
+    const choice = await (prompts = prompts.then(() => inHost ? askHost(ask) : askPerson(ask)));
     log(`${label}: ${choice}${offer.highRisk ? ' (high risk)' : ''}`);
     return approvalResult(choice, offer.options);
+  }
+
+  function askHost({ app, shown, risk, options }) {
+    const id = `cluadex-ask-${ownId += 1}`;
+    toHost({ jsonrpc: '2.0', id, method: 'elicitation/create', params: hostElicitation({ name: shown ?? app ?? 'this app', risk, options }) });
+    return new Promise(resolve => {
+      const timer = setTimeout(() => {
+        hostAsks.delete(id);
+        toHost({ jsonrpc: '2.0', method: 'notifications/cancelled', params: { requestId: id, reason: 'approval timed out' } });
+        resolve('deny');
+      }, APPROVAL_SECONDS * 1000);
+      hostAsks.set(id, message => { clearTimeout(timer); resolve(hostChoice(message.result, options)); });
+    });
   }
 
   createInterface({ input: process.stdin }).on('line', line => {
     const message = parse(line);
     if (!message) return;
+    if (message.method === undefined && hostAsks.has(message.id)) {
+      const answer = hostAsks.get(message.id);
+      hostAsks.delete(message.id);
+      answer(message);
+      return;
+    }
     if (message.method === 'initialize') {
       hostElicits = Boolean(message.params?.capabilities?.elicitation);
       message.params = { ...message.params, capabilities: { ...message.params?.capabilities, elicitation: {} } };
@@ -508,6 +547,15 @@ function selftest() {
   assert(!isListed([undefined, undefined], keys));
   assert(isAppApproval({ _meta: { connector_id: 'computer-use', codex_approval_kind: 'mcp_tool_call' } }));
   assert(!isAppApproval({ _meta: { connector_id: 'chrome' } }));
+  const form = hostElicitation({ name: 'Notes', risk: '', options: ['session', 'always'] });
+  assert.deepEqual(form.requestedSchema.properties.choice.enum, ['session', 'always']);
+  assert.deepEqual(form.requestedSchema.properties.choice.enumNames, ['Allow this conversation', 'Always allow']);
+  assert(hostElicitation({ name: 'Mail', risk: 'Sees mail.', options: ['once'] }).message.includes('High risk: Sees mail.'));
+  assert.equal(hostChoice({ action: 'accept', content: { choice: 'always' } }, ['session', 'always']), 'always');
+  assert.equal(hostChoice({ action: 'accept', content: { choice: 'always' } }, ['session']), 'deny', 'a choice that was not offered');
+  for (const other of [{ action: 'decline' }, { action: 'cancel' }, { action: 'accept', content: {} }, undefined]) {
+    assert.equal(hostChoice(other, ['session', 'always']), 'deny');
+  }
   assert.equal(riskText({ warningSubtitle: 'Sees passwords.' }), 'Sees passwords.');
   assert.deepEqual(toolDescriptors().map(tool => tool.name), ['list_apps', 'get_app_state', 'click', 'type_text', 'press_key',
     'set_value', 'select_text', 'paste', 'scroll', 'drag', 'perform_secondary_action']);

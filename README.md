@@ -59,7 +59,7 @@ If you need Linux, another harness or Chrome, use LCU. Line counts were taken on
 
 The ChatGPT desktop app ships a computer-use MCP server. This plugin starts that server, unchanged, and offers its computer-use functions to Claude Code as ordinary tools. It adds only what a host other than Codex lacks:
 
-- **Approval panel.** The first time the agent touches an app, a Liquid Glass panel asks "Allow computer use to control …?". Only the person at the Mac can answer; the model cannot see or press it.
+- **Approval prompt.** The first time the agent touches an app, Claude Code itself asks "Allow computer use to control …?". The answer travels back over Claude Code's own MCP connection, which the model cannot write to. Hosts without that support, or `CLUADEX_APPROVAL=panel`, get a Liquid Glass panel outside the host instead.
 - **Turn cleanup.** Hooks tell the runtime when a turn ends.
 - **Host guard.** The app hosting the agent (Claude, your terminal) is never approved, so the agent cannot click its own permission prompts.
 
@@ -107,14 +107,17 @@ The choices and their meaning are OpenAI's. Every one of them covers only the ap
 
 A different app always gets its own question. When the runtime offers no conversation scope, the first choice becomes "Allow once". Apps the runtime marks high risk, such as browsers, show its warning.
 
-The panel does not take the keyboard, so nothing you are typing can answer it. Only a click approves.
+By default the question is an MCP elicitation: Claude Code shows it as a form with the choices, and its Decline (or Esc) is Deny. The relay turns the choice into the runtime's answer, so the host never has to know OpenAI's format. Unlike the panel, this prompt reaches wherever the session is shown, including Remote Control.
+
+The panel (`CLUADEX_APPROVAL=panel`) does not take the keyboard, so nothing you are typing can answer it. Only a click approves.
 
 "Always allow" is stored in `~/Library/Group Containers/2DC432GLL2.com.openai.sky.CUAService/Library/Application Support/Software/ComputerUseAppApprovals.json`. Remove a line there to take an approval back.
 
 | Environment variable | Effect |
 | --- | --- |
 | `CLUADEX_APPROVAL=deny` | Decline every request without a prompt, for unattended runs. There is no setting that approves automatically. |
-| `CLUADEX_PLAIN_PROMPT=1` | Use the plain list dialog instead of the panel. |
+| `CLUADEX_APPROVAL=panel` | Ask with the Liquid Glass panel at the Mac instead of in Claude Code. |
+| `CLUADEX_PLAIN_PROMPT=1` | With the panel, use the plain list dialog instead. |
 | `CLUADEX_JS=1` | Also offer the runtime's `js` and `js_reset` tools. |
 | `CLUADEX_APP=/path/to/ChatGPT.app` | Use an app outside `/Applications` (also change the Node path in `.mcp.json`). |
 
@@ -178,7 +181,7 @@ Claude Code ── MCP ── relay.mjs ── MCP ── cua-repl (OpenAI) ─�
         hooks/turn-end.sh (Stop, UserPromptSubmit) via a local socket
 ```
 
-`relay.mjs` verifies that the app's Node, `node_repl` and helper are signed by OpenAI, starts the app's own launcher, and forwards MCP messages. It hides the two host-only tools, answers the runtime's approval requests by showing the panel, and stamps each call with a turn id. The hooks reach the relay through `~/Library/Caches/cluadex/<claude pid>.sock`, which accepts one message: the turn is over.
+`relay.mjs` verifies that the app's Node, `node_repl` and helper are signed by OpenAI, starts the app's own launcher, and forwards MCP messages. It hides the two host-only tools, answers the runtime's approval requests by asking the host (or showing the panel), and stamps each call with a turn id. The hooks reach the relay through `~/Library/Caches/cluadex/<claude pid>.sock`, which accepts one message: the turn is over.
 
 ## Limits
 
