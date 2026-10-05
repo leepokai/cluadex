@@ -15,7 +15,9 @@ import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
 
 const OPENAI_TEAM_ID = '2DC432GLL2';
-const PUBLIC_TOOLS = new Set(['js', 'js_reset']); // turn_ended and js_add_node_module_dir stay host-only
+// The runtime's own tools run arbitrary JavaScript, so they are offered only on request (CLUADEX_JS=1).
+// turn_ended and js_add_node_module_dir are for the host and are never offered.
+const PUBLIC_TOOLS = new Set(process.env.CLUADEX_JS === '1' ? ['js', 'js_reset'] : []);
 const TURN_META = 'x-codex-turn-metadata';
 const STATE_DIR = join(homedir(), 'Library/Caches/cluadex');
 const APPROVAL_SECONDS = Number(process.env.CLUADEX_APPROVAL_SECONDS) || 120; // unanswered prompts deny
@@ -271,6 +273,19 @@ function toolDescriptors() {
   }));
 }
 
+const POLICY_HEADING = '# Computer Use Confirmations Policy';
+
+/**
+ * The runtime opens its first answer with a manual for its JavaScript API followed by its
+ * confirmation policy. With only the named tools on offer the manual is dead weight and
+ * points at a tool that is not there, so keep the policy and drop the manual.
+ */
+function withoutApiManual(text) {
+  if (typeof text !== 'string' || !text.startsWith('## Computer Use')) return text;
+  const policy = text.indexOf(POLICY_HEADING);
+  return policy < 0 ? text : text.slice(policy);
+}
+
 /** The names of required arguments that are absent, so a bad call fails here with a clear message. */
 function missingArguments(name, args) {
   return TOOLS[name].required.filter(key => args?.[key] === undefined || args[key] === null);
@@ -315,6 +330,7 @@ function main() {
   let hosts;
   let prompts = Promise.resolve();
   const listIds = new Set();
+  const namedIds = new Set();
   const ownIds = new Set();
   const turnId = () => `${session}-turn-${turn}`;
 
@@ -371,6 +387,7 @@ function main() {
           return;
         }
         message.params = { ...message.params, name: 'js', arguments: { code: toolCode(name, message.params.arguments), title: name } };
+        if (message.id !== undefined) namedIds.add(message.id);
       } else if (!PUBLIC_TOOLS.has(name)) {
         toHost({ jsonrpc: '2.0', id: message.id, result: { isError: true, content: [{ type: 'text', text: `${name} is not available.` }] } });
         return;
@@ -390,6 +407,9 @@ function main() {
     }
     if (message.id !== undefined && listIds.delete(message.id) && Array.isArray(message.result?.tools)) {
       message.result.tools = [...toolDescriptors(), ...filterTools(message.result.tools)];
+    }
+    if (message.id !== undefined && namedIds.delete(message.id) && PUBLIC_TOOLS.size === 0 && Array.isArray(message.result?.content)) {
+      for (const part of message.result.content) if (part.type === 'text') part.text = withoutApiManual(part.text);
     }
     if (message.method === 'elicitation/create' && isAppApproval(message.params)) {
       decide(message.params).then(result => toUpstream({ jsonrpc: '2.0', id: message.id, result }));
@@ -428,8 +448,11 @@ function main() {
 
 /** `--selftest`: the logic that decides who gets approved, with no app and no desktop needed. */
 function selftest() {
-  assert.deepEqual(filterTools([{ name: 'js' }, { name: 'turn_ended' }, { name: 'js_reset' }, { name: 'js_add_node_module_dir' }])
-    .map(tool => tool.name), ['js', 'js_reset']);
+  const offered = filterTools([{ name: 'js' }, { name: 'turn_ended' }, { name: 'js_reset' }, { name: 'js_add_node_module_dir' }]).map(tool => tool.name);
+  assert.deepEqual(offered, process.env.CLUADEX_JS === '1' ? ['js', 'js_reset'] : []);
+  assert.equal(withoutApiManual(`## Computer Use\nmanual\n${POLICY_HEADING}\nask first`), `${POLICY_HEADING}\nask first`);
+  assert.equal(withoutApiManual('## Computer Use\na manual with no policy heading'), '## Computer Use\na manual with no policy heading');
+  assert.equal(withoutApiManual('Window: "Notes"'), 'Window: "Notes"');
   assert.deepEqual(approvalOptions({ riskLevel: 'low', persist: ['session', 'always'] }), { options: ['session', 'always'], highRisk: false });
   assert.deepEqual(approvalOptions({ riskLevel: 'low', persist: ['session'] }).options, ['session']);
   assert.deepEqual(approvalOptions({ riskLevel: 'low' }).options, ['once']);
@@ -489,7 +512,7 @@ function check() {
       send({ jsonrpc: '2.0', id: 2, method: 'tools/list' });
     } else if (message.id === 2) {
       const names = message.result.tools.map(tool => tool.name);
-      const expected = [...Object.keys(TOOLS), 'js', 'js_reset'];
+      const expected = [...Object.keys(TOOLS), ...PUBLIC_TOOLS];
       if (names.join() !== expected.join()) finish(false, `unexpected tools: ${names.join(', ')}`);
       send({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'list_apps', arguments: {} } });
     } else if (message.id === 3) {

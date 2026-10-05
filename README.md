@@ -80,11 +80,12 @@ It contains no computer-use logic and no OpenAI files. This is an unofficial pro
 | `scroll` | Scrolls an element or the view at a point. |
 | `drag` | Drags from one point to another. |
 | `perform_secondary_action` | Runs an element's secondary accessibility action. |
-| `js`, `js_reset` | The runtime's own tools: run JavaScript against the same functions, to chain several actions in one call. |
 
 The first two only read. Every other named tool returns the app's state after it acts, so there is no need to read again before the next step. Because each action is its own tool, Claude Code's permission rules can allow reading while still asking before clicks.
 
-Each named tool is turned into one `js` call for the runtime. Nothing about computer use is reimplemented here.
+Each tool is turned into one call to the runtime's own JavaScript tool. Nothing about computer use is reimplemented here.
+
+The runtime's JavaScript tools (`js`, `js_reset`) are not offered by default: they run arbitrary code, and their manual costs about 3,300 tokens at the start of every session. With them hidden, the plugin drops that manual from the runtime's first answer and keeps its confirmation policy. Set `CLUADEX_JS=1` to get them back, for chaining several actions in one call.
 
 ## Requirements
 
@@ -114,6 +115,7 @@ The panel does not take the keyboard, so nothing you are typing can answer it. O
 | --- | --- |
 | `CLUADEX_APPROVAL=deny` | Decline every request without a prompt, for unattended runs. There is no setting that approves automatically. |
 | `CLUADEX_PLAIN_PROMPT=1` | Use the plain list dialog instead of the panel. |
+| `CLUADEX_JS=1` | Also offer the runtime's `js` and `js_reset` tools. |
 | `CLUADEX_APP=/path/to/ChatGPT.app` | Use an app outside `/Applications` (also change the Node path in `.mcp.json`). |
 
 ## The approval panel binary
