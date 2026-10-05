@@ -1,23 +1,61 @@
 <div align="center">
 
+<img src="assets/icon.svg" width="128" alt="Cluadex icon">
+
 # Cluadex
 
-**Codex's CUA runtime, for Claude.**<br>
-A Claude Code plugin for macOS.
+**A lightweight LCU, for Claude Code only.**<br>
+Codex computer use as a plugin. Two commands to install, about 700 lines, nothing else to set up.
 
-[![Claude Code plugin](https://img.shields.io/badge/Claude_Code-plugin-D97757?logo=claude&logoColor=white)](https://github.com/leepokai/cluadex#install)
+[![Claude Code plugin](https://img.shields.io/badge/Claude_Code-plugin-D97757?logo=claude&logoColor=white)](#install)
 [![Version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fleepokai%2Fcluadex%2Fmain%2F.claude-plugin%2Fplugin.json&query=%24.version&prefix=v&label=version&color=black)](https://github.com/leepokai/cluadex/commits/main)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![Idea from LCU](https://img.shields.io/badge/idea_from-LCU-555)](https://github.com/amontlabs/lcu)
 <br>
+![Size](https://img.shields.io/badge/size-~700_lines-black)
+![Dependencies](https://img.shields.io/badge/dependencies-none-black)
 ![macOS](https://img.shields.io/badge/macOS-26+-black?logo=apple)
 ![Apple Silicon](https://img.shields.io/badge/Apple_Silicon-arm64-black?logo=apple)
 ![Relay](https://img.shields.io/badge/relay-Node.js-5FA04E?logo=nodedotjs&logoColor=white)
 ![Panel](https://img.shields.io/badge/panel-SwiftUI-F05138?logo=swift&logoColor=white)
-![Protocol](https://img.shields.io/badge/protocol-MCP-black)
 
 </div>
 
-The name is Claude + CUA + Codex: Claude using Codex's computer-use agent (CUA) runtime.
+[LCU](https://github.com/amontlabs/lcu) takes Codex's computer use out of the Codex app and brings it to five agent harnesses, on macOS and Linux. Cluadex is that idea cut down to a single case: Claude Code on a Mac, installed the way every other Claude Code plugin is.
+
+It is an independent reimplementation, not a fork, and shares no code with LCU. The name is Claude + CUA + Codex: Claude using Codex's computer-use agent (CUA) runtime.
+
+## Install
+
+```sh
+claude plugin marketplace add leepokai/cluadex
+claude plugin install cluadex@cluadex
+```
+
+That is the whole setup. There is no installer script, no Python and no npm, and updates and removal go through Claude Code's own plugin manager. Then ask for something in a desktop app, for example "use computer use to read the Calculator window".
+
+An installed plugin loads in every session, and each session holds 3 processes (about 120 MB) while idle and 7 (about 320 MB) once computer use has run. To load it only when you want it, clone the repo and pass it per session instead:
+
+```sh
+git clone https://github.com/leepokai/cluadex
+claude --plugin-dir ./cluadex
+```
+
+## Lightweight by leaving things out
+
+| | LCU 0.9.2 | Cluadex |
+| --- | --- | --- |
+| Agent harnesses | Pi, Codex CLI, Claude Code, Oh My Pi, Hermes | Claude Code |
+| Platforms | macOS and Linux, Windows as a candidate | macOS on Apple Silicon |
+| Install | Release archive and installer, needs Python 3.12+ | Two `claude plugin` commands |
+| Update and removal | `lcu update`, manual removal steps | Claude Code's plugin manager |
+| Code, without tests | about 11,400 lines | about 700 lines |
+| Chrome control, audio recording | Opt-in | Not included |
+| Managing the always-allowed list | `lcu apps`, behind Touch ID | Edit one file |
+
+If you need Linux, another harness or Chrome, use LCU. Line counts were taken on 2026-10-05.
+
+## What it does
 
 The ChatGPT desktop app ships a computer-use MCP server. This plugin starts that server, unchanged, and gives Claude Code its two tools (`js`, `js_reset`). It adds only what a host other than Codex lacks:
 
@@ -34,22 +72,6 @@ It contains no computer-use logic and no OpenAI files. This is an unofficial pro
 - macOS 26 or newer for the Liquid Glass panel. Older systems get a plain list dialog instead.
 
 There is nothing else to install. The relay runs on the Node bundled inside the ChatGPT app.
-
-## Install
-
-```sh
-claude plugin marketplace add leepokai/cluadex
-claude plugin install cluadex@cluadex
-```
-
-Then ask for something in a desktop app, for example "use computer use to read the Calculator window".
-
-An installed plugin loads in every session, and each session holds 3 processes (about 120 MB) while idle and 7 (about 320 MB) once computer use has run. To load it only when you want it, clone the repo and pass it per session instead:
-
-```sh
-git clone https://github.com/leepokai/cluadex
-claude --plugin-dir ./cluadex
-```
 
 ## Approvals
 

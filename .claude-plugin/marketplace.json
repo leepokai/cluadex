@@ -1,7 +1,7 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "cluadex",
-  "description": "Cluadex: Codex's CUA runtime, for Claude.",
+  "description": "Cluadex: a lightweight LCU for Claude Code only.",
   "owner": {
     "name": "leepokai",
     "url": "https://github.com/leepokai"
@@ -9,7 +9,7 @@
   "plugins": [
     {
       "name": "cluadex",
-      "description": "Codex computer use in Claude Code, on macOS. Starts the installed ChatGPT app's own computer-use MCP server and adds a Liquid Glass approval panel, turn cleanup and a host-app guard.",
+      "description": "A lightweight LCU for Claude Code only: Codex computer use as a plugin, on macOS. Reuses the installed ChatGPT app's own computer-use runtime and adds a Liquid Glass approval panel, turn cleanup and a host-app guard.",
       "source": "./",
       "category": "productivity"
     }

@@ -1,7 +1,7 @@
 {
   "name": "cluadex",
   "version": "0.1.0",
-  "description": "Codex computer use in Claude Code, on macOS. Starts the installed ChatGPT app's own computer-use MCP server and adds a Liquid Glass approval panel, turn cleanup and a host-app guard.",
+  "description": "A lightweight LCU for Claude Code only: Codex computer use as a plugin, on macOS. Reuses the installed ChatGPT app's own computer-use runtime and adds a Liquid Glass approval panel, turn cleanup and a host-app guard.",
   "author": {
     "name": "leepokai",
     "url": "https://github.com/leepokai"
@@ -13,6 +13,8 @@
     "claude-plugin",
     "computer-use",
     "codex",
+    "cua",
+    "lcu",
     "macos",
     "mcp",
     "liquid-glass"
