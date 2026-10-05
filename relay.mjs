@@ -207,14 +207,16 @@ function askPerson({ app, shown, risk, options }) {
 }
 
 /**
- * The form Claude Code shows for an app approval: one required choice, so the dialog's own
- * Decline (or Esc) is the denial. The relay, not the host, turns the choice into the runtime's answer.
+ * The form Claude Code shows for an app approval: the widest scope first and preselected, then Deny.
+ * The dialog's own Decline (or Esc) also denies. The relay, not the host, turns the choice into the runtime's answer.
  */
 function hostElicitation({ name, risk, options }) {
+  const choices = [...options].reverse();
   return {
-    message: `Allow computer use to control ${name}?${risk ? `\n\nHigh risk: ${risk}` : ''}\n\nDecline to deny.`,
+    message: `Allow computer use to control ${name}?${risk ? `\n\nHigh risk: ${risk}` : ''}`,
     requestedSchema: { type: 'object', required: ['choice'], properties: {
-      choice: { type: 'string', title: 'Allow', enum: options, enumNames: options.map(key => LABELS[key]), default: options[0] } } },
+      choice: { type: 'string', title: 'Choice', enum: [...choices, 'deny'],
+        enumNames: [...choices.map(key => LABELS[key]), 'Deny'], default: choices[0] } } },
   };
 }
 
@@ -548,8 +550,10 @@ function selftest() {
   assert(isAppApproval({ _meta: { connector_id: 'computer-use', codex_approval_kind: 'mcp_tool_call' } }));
   assert(!isAppApproval({ _meta: { connector_id: 'chrome' } }));
   const form = hostElicitation({ name: 'Notes', risk: '', options: ['session', 'always'] });
-  assert.deepEqual(form.requestedSchema.properties.choice.enum, ['session', 'always']);
-  assert.deepEqual(form.requestedSchema.properties.choice.enumNames, ['Allow this conversation', 'Always allow']);
+  assert.deepEqual(form.requestedSchema.properties.choice.enum, ['always', 'session', 'deny']);
+  assert.deepEqual(form.requestedSchema.properties.choice.enumNames, ['Always allow', 'Allow this conversation', 'Deny']);
+  assert.equal(form.requestedSchema.properties.choice.default, 'always');
+  assert.equal(hostChoice({ action: 'accept', content: { choice: 'deny' } }, ['session', 'always']), 'deny');
   assert(hostElicitation({ name: 'Mail', risk: 'Sees mail.', options: ['once'] }).message.includes('High risk: Sees mail.'));
   assert.equal(hostChoice({ action: 'accept', content: { choice: 'always' } }, ['session', 'always']), 'always');
   assert.equal(hostChoice({ action: 'accept', content: { choice: 'always' } }, ['session']), 'deny', 'a choice that was not offered');
