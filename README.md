@@ -1,8 +1,8 @@
-# skyhook
+# Cluadex
 
-Codex computer use inside Claude Code, on macOS.
+Codex's CUA runtime, for Claude. A Claude Code plugin for macOS.
 
-Sky is the computer-use engine inside the ChatGPT desktop app. skyhook hooks Claude Code onto it.
+The name is Claude + CUA + Codex: Claude using Codex's computer-use agent (CUA) runtime.
 
 The ChatGPT desktop app ships a computer-use MCP server. This plugin starts that server, unchanged, and gives Claude Code its two tools (`js`, `js_reset`). It adds only what a host other than Codex lacks:
 
@@ -23,8 +23,8 @@ There is nothing else to install. The relay runs on the Node bundled inside the 
 ## Install
 
 ```sh
-claude plugin marketplace add leepokai/claude-plugin-skyhook
-claude plugin install skyhook@claude-plugin-skyhook
+claude plugin marketplace add leepokai/cluadex
+claude plugin install cluadex@cluadex
 ```
 
 Then ask for something in a desktop app, for example "use computer use to read the Calculator window".
@@ -32,8 +32,8 @@ Then ask for something in a desktop app, for example "use computer use to read t
 An installed plugin loads in every session, and each session holds 3 processes (about 120 MB) while idle and 7 (about 320 MB) once computer use has run. To load it only when you want it, clone the repo and pass it per session instead:
 
 ```sh
-git clone https://github.com/leepokai/claude-plugin-skyhook
-claude --plugin-dir ./claude-plugin-skyhook
+git clone https://github.com/leepokai/cluadex
+claude --plugin-dir ./cluadex
 ```
 
 ## Approvals
@@ -54,9 +54,9 @@ The panel does not take the keyboard, so nothing you are typing can answer it. O
 
 | Environment variable | Effect |
 | --- | --- |
-| `SKYHOOK_APPROVAL=deny` | Decline every request without a prompt, for unattended runs. There is no setting that approves automatically. |
-| `SKYHOOK_PLAIN_PROMPT=1` | Use the plain list dialog instead of the panel. |
-| `SKYHOOK_APP=/path/to/ChatGPT.app` | Use an app outside `/Applications` (also change the Node path in `.mcp.json`). |
+| `CLUADEX_APPROVAL=deny` | Decline every request without a prompt, for unattended runs. There is no setting that approves automatically. |
+| `CLUADEX_PLAIN_PROMPT=1` | Use the plain list dialog instead of the panel. |
+| `CLUADEX_APP=/path/to/ChatGPT.app` | Use an app outside `/Applications` (also change the Node path in `.mcp.json`). |
 
 ## The approval panel binary
 
@@ -84,7 +84,7 @@ Claude Code ── MCP ── relay.mjs ── MCP ── cua-repl (OpenAI) ─�
         hooks/turn-end.sh (Stop, UserPromptSubmit) via a local socket
 ```
 
-`relay.mjs` verifies that the app's Node, `node_repl` and helper are signed by OpenAI, starts the app's own launcher, and forwards MCP messages. It hides the two host-only tools, answers the runtime's approval requests by showing the panel, and stamps each call with a turn id. The hooks reach the relay through `~/Library/Caches/skyhook/<claude pid>.sock`, which accepts one message: the turn is over.
+`relay.mjs` verifies that the app's Node, `node_repl` and helper are signed by OpenAI, starts the app's own launcher, and forwards MCP messages. It hides the two host-only tools, answers the runtime's approval requests by showing the panel, and stamps each call with a turn id. The hooks reach the relay through `~/Library/Caches/cluadex/<claude pid>.sock`, which accepts one message: the turn is over.
 
 ## Limits
 
@@ -99,9 +99,9 @@ Claude Code ── MCP ── relay.mjs ── MCP ── cua-repl (OpenAI) ─�
 ## Remove
 
 ```sh
-claude plugin uninstall skyhook@claude-plugin-skyhook
-claude plugin marketplace remove claude-plugin-skyhook
-rm -rf ~/Library/Caches/skyhook
+claude plugin uninstall cluadex@cluadex
+claude plugin marketplace remove cluadex
+rm -rf ~/Library/Caches/cluadex
 ```
 
 To also forget approvals, edit the "Always allow" file above.

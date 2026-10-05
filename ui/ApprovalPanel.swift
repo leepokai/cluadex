@@ -1,4 +1,4 @@
-// approve-ui: the skyhook approval prompt, drawn as a Liquid Glass panel (macOS 26+).
+// approve-ui: the cluadex approval prompt, drawn as a Liquid Glass panel (macOS 26+).
 // It prints one word (once | session | always | deny) and exits. It decides nothing
 // itself: relay.mjs turns the word into an answer for the runtime.
 import AppKit

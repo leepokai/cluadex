@@ -1,4 +1,4 @@
-// skyhook relay. Starts the installed ChatGPT app's own computer-use MCP server and passes MCP
+// cluadex relay. Starts the installed ChatGPT app's own computer-use MCP server and passes MCP
 // through unchanged, adding only what a host other than Codex lacks:
 //   1. a per-app approval dialog that only the person at the Mac can answer,
 //   2. turn-end cleanup, signalled by this plugin's Stop / UserPromptSubmit hooks,
@@ -17,12 +17,12 @@ import { fileURLToPath } from 'node:url';
 const OPENAI_TEAM_ID = '2DC432GLL2';
 const PUBLIC_TOOLS = new Set(['js', 'js_reset']); // turn_ended and js_add_node_module_dir stay host-only
 const TURN_META = 'x-codex-turn-metadata';
-const STATE_DIR = join(homedir(), 'Library/Caches/skyhook');
-const APPROVAL_SECONDS = Number(process.env.SKYHOOK_APPROVAL_SECONDS) || 120; // unanswered prompts deny
+const STATE_DIR = join(homedir(), 'Library/Caches/cluadex');
+const APPROVAL_SECONDS = Number(process.env.CLUADEX_APPROVAL_SECONDS) || 120; // unanswered prompts deny
 
 function log(text) {
-  process.stderr.write(`skyhook: ${text}\n`);
-  if (process.env.SKYHOOK_LOG) appendFileSync(process.env.SKYHOOK_LOG, `${new Date().toISOString()} ${text}\n`);
+  process.stderr.write(`cluadex: ${text}\n`);
+  if (process.env.CLUADEX_LOG) appendFileSync(process.env.CLUADEX_LOG, `${new Date().toISOString()} ${text}\n`);
 }
 
 // ---- the installed app --------------------------------------------------------------------
@@ -30,7 +30,7 @@ function log(text) {
 /** This file normally runs under the app's own Node, so the app is wherever that Node lives. */
 function appPaths(env = process.env, execPath = process.execPath) {
   const marker = '/Contents/Resources/cua_node/bin/node';
-  const app = env.SKYHOOK_APP || (execPath.endsWith(marker) ? execPath.slice(0, -marker.length) : '/Applications/ChatGPT.app');
+  const app = env.CLUADEX_APP || (execPath.endsWith(marker) ? execPath.slice(0, -marker.length) : '/Applications/ChatGPT.app');
   const resources = join(app, 'Contents/Resources');
   const runtime = join(resources, 'cua_node');
   const modules = join(runtime, 'lib/node_modules');
@@ -192,7 +192,7 @@ function askPerson({ app, shown, risk, options }) {
       (error, stdout) => resolve(error ? 'deny' : Object.keys(LABELS).find(key => LABELS[key] === stdout.trim()) ?? 'deny'));
   };
   return new Promise(resolve => {
-    if (process.env.SKYHOOK_PLAIN_PROMPT || !existsSync(APPROVE_UI)) return fallback(resolve);
+    if (process.env.CLUADEX_PLAIN_PROMPT || !existsSync(APPROVE_UI)) return fallback(resolve);
     // Some installs drop the executable bit. Restore it; if that fails, the exec below fails and the plain prompt asks.
     try { chmodSync(APPROVE_UI, 0o755); } catch { /* handled by the fallback */ }
     const args = ['--app', app ?? '', '--name', name, '--options', options.join(','), '--timeout', String(APPROVAL_SECONDS)];
@@ -213,11 +213,11 @@ function filterTools(tools) {
 function main() {
   const p = appPaths();
   if (!existsSync(p.launcher) || !existsSync(p.helper)) {
-    throw new Error(`ChatGPT desktop app with computer use not found at ${p.app} (set SKYHOOK_APP to its path)`);
+    throw new Error(`ChatGPT desktop app with computer use not found at ${p.app} (set CLUADEX_APP to its path)`);
   }
   for (const file of [p.node, p.nodeRepl, p.helper]) assertSignedByOpenAI(file);
 
-  const session = `skyhook-${randomUUID()}`;
+  const session = `cluadex-${randomUUID()}`;
   let turn = 1;
   let turnUsed = false;
   let ownId = 0;
@@ -235,7 +235,7 @@ function main() {
 
   function endTurn(event) {
     if (!turnUsed) return;
-    const id = `skyhook-${ownId += 1}`;
+    const id = `cluadex-${ownId += 1}`;
     ownIds.add(id);
     toUpstream({ jsonrpc: '2.0', id, method: 'tools/call',
       params: { name: 'turn_ended', arguments: { session_id: session, turn_id: turnId(), hook_event_name: event } } });
@@ -256,7 +256,7 @@ function main() {
       log(`declined ${label}: it hosts this agent or its approval prompt`);
       return { action: 'decline' };
     }
-    if (process.env.SKYHOOK_APPROVAL === 'deny') return { action: 'decline' }; // unattended runs; there is no allow override
+    if (process.env.CLUADEX_APPROVAL === 'deny') return { action: 'decline' }; // unattended runs; there is no allow override
     const offer = approvalOptions(meta);
     const choice = await (prompts = prompts.then(() => askPerson({
       app, shown, risk: offer.highRisk ? riskText(meta) : '', options: offer.options })));
@@ -357,14 +357,14 @@ function selftest() {
   assert.equal(riskText({ warningSubtitle: 'Sees passwords.' }), 'Sees passwords.');
   assert.equal(appPaths({}, '/X/ChatGPT.app/Contents/Resources/cua_node/bin/node').app, '/X/ChatGPT.app');
   assert.equal(appPaths({}, '/usr/local/bin/node').app, '/Applications/ChatGPT.app');
-  assert.equal(appPaths({ SKYHOOK_APP: '/Y/ChatGPT.app' }, '/usr/local/bin/node').app, '/Y/ChatGPT.app');
+  assert.equal(appPaths({ CLUADEX_APP: '/Y/ChatGPT.app' }, '/usr/local/bin/node').app, '/Y/ChatGPT.app');
   console.log('selftest ok');
 }
 
 /** `--check`: start the real relay and ask the runtime to list apps. Run it after a ChatGPT app update. */
 function check() {
   const relay = spawn(process.execPath, [fileURLToPath(import.meta.url)], {
-    env: { ...process.env, SKYHOOK_APPROVAL: 'deny' }, stdio: ['pipe', 'pipe', 'inherit'] });
+    env: { ...process.env, CLUADEX_APPROVAL: 'deny' }, stdio: ['pipe', 'pipe', 'inherit'] });
   const send = message => relay.stdin.write(`${JSON.stringify(message)}\n`);
   const finish = (ok, text) => { console.log(`${ok ? 'ok' : 'FAILED'}: ${text}`); relay.kill(); process.exit(ok ? 0 : 1); };
   const timer = setTimeout(() => finish(false, 'no answer from the runtime within 60 s'), 60_000);
@@ -386,7 +386,7 @@ function check() {
     }
   });
   send({ jsonrpc: '2.0', id: 1, method: 'initialize',
-    params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'skyhook-check', version: '0' } } });
+    params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'cluadex-check', version: '0' } } });
 }
 
 try {

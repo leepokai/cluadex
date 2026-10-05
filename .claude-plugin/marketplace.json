@@ -1,14 +1,14 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
-  "name": "claude-plugin-skyhook",
-  "description": "skyhook: Codex computer use in Claude Code, on macOS.",
+  "name": "cluadex",
+  "description": "Cluadex: Codex's CUA runtime, for Claude.",
   "owner": {
     "name": "leepokai",
     "url": "https://github.com/leepokai"
   },
   "plugins": [
     {
-      "name": "skyhook",
+      "name": "cluadex",
       "description": "Codex computer use in Claude Code, on macOS. Starts the installed ChatGPT app's own computer-use MCP server and adds a Liquid Glass approval panel, turn cleanup and a host-app guard.",
       "source": "./",
       "category": "productivity"
