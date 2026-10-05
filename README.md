@@ -107,7 +107,7 @@ The choices and their meaning are OpenAI's. Every one of them covers only the ap
 
 A different app always gets its own question. When the runtime offers no conversation scope, the first choice becomes "Allow once". Apps the runtime marks high risk, such as browsers, show its warning.
 
-By default the question is an MCP elicitation: Claude Code shows it as a form with the choices, and Always allow comes first and is preselected; picking Deny, or the dialog's Decline (or Esc), denies. The relay turns the choice into the runtime's answer, so the host never has to know OpenAI's format. Unlike the panel, this prompt reaches wherever the session is shown, including Remote Control.
+By default the question is an MCP elicitation: Claude Code shows it as a form with the choices, and Always allow comes first and is preselected; Accept (or Enter) approves it, and the dialog's own Decline (or Esc) denies. The relay turns the choice into the runtime's answer, so the host never has to know OpenAI's format. Unlike the panel, this prompt reaches wherever the session is shown, including Remote Control.
 
 The panel (`CLUADEX_APPROVAL=panel`) does not take the keyboard, so nothing you are typing can answer it. Only a click approves.
 
