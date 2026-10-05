@@ -1,8 +1,10 @@
 {
   "mcpServers": {
-    "sky": {
+    "cluadex": {
       "command": "/Applications/ChatGPT.app/Contents/Resources/cua_node/bin/node",
-      "args": ["${CLAUDE_PLUGIN_ROOT}/relay.mjs"]
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/relay.mjs"
+      ]
     }
   }
 }
